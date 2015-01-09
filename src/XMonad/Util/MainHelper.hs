@@ -18,7 +18,8 @@ import System.IO
 import System.Info
 import System.Process
 import System.Directory
-import Data.List ((\\))
+import Data.List
+import System.Posix.User
 
 import qualified XMonad.Config as XMC
 
@@ -79,12 +80,13 @@ withCustomHelper :: Config -> IO ()
 withCustomHelper conf = do
     installSignalHandlers
     args <- getArgs
+    let launch = catchIO (buildAndLaunch conf) >> execute conf
     case args of
-        []                    -> execute conf
-        ("--resume":_)        -> execute conf
+        []                    -> launch
+        ("--resume":_)        -> launch
         ["--help"]            -> printUsage >> exitFailure
-        ["--recompile"]       -> recompile conf >>= exitWith
-        ["--replace"]         -> execute conf
+        ["--recompile"]       -> withLock (recompile conf) >>= exitWith
+        ["--replace"]         -> launch
         ["--restart"]         -> sendRestart
         ["--version"]         -> printVersion False
         ["--verbose-version"] -> printVersion True
@@ -95,7 +97,7 @@ buildAndLaunch c = do
     upToDate <- upToDateCheck c
     if upToDate
       then void launch
-      else do ec <- recompile c
+      else do ec <- withLock (recompile c)
               case ec of
                 ExitSuccess -> void launch
                 ExitFailure v -> do
@@ -115,9 +117,8 @@ recompile c = do
     (cmd,args,cmpDir) <- recompileCommand c
     uninstallSignalHandlers
     status <- bracket (openFile err WriteMode) hClose $ \h ->
-            waitForProcess =<< runProcess cmd args cmpDir
-                                    Nothing Nothing Nothing (Just h)
-
+            waitForProcess =<< runProcess cmd args cmpDir Nothing
+                                   Nothing (Just h) (Just h)
     installSignalHandlers
     return status
 
@@ -137,3 +138,25 @@ sendRestart = do
         setClientMessageEvent e rw xmonad_restart 32 0 currentTime
         sendEvent dpy rw False structureNotifyMask e
     sync dpy False
+
+withLock :: IO ExitCode -> IO ExitCode
+withLock action = do
+    tmpDir <- getTemporaryDirectory
+    usr <- getLoginName
+    let lockFile = tmpDir </> intercalate "." ["xmonad",usr,"lock"]
+    withFileLock lockFile action
+
+withFileLock :: FilePath -> IO ExitCode -> IO ExitCode
+withFileLock fPath action = do
+    lock <- doesFileExist fPath
+    if lock
+      then skipCompile
+      else doCompile
+  where
+    skipCompile = do
+        putStrLn $ "Lock file " ++ fPath ++ " found, aborting ..."
+        putStrLn   "Delete lock file to continue."
+        return (ExitFailure 1)
+    doCompile = bracket (writeFile fPath "")
+                        (const (removeFile fPath))
+                        (const action)
