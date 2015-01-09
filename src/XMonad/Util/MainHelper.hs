@@ -20,6 +20,8 @@ import System.Process
 import System.Directory
 import Data.List ((\\))
 
+import qualified XMonad.Config as XMC
+
 data Config = Config
   { execute :: IO ()
   , recompileCommand :: IO (FilePath, [String], Maybe FilePath)
@@ -48,11 +50,11 @@ defaultUpToDateCheck = do
         ds <- filterM doesDirectoryExist cs
         concat . ((cs \\ ds):) <$> mapM allFiles ds
 
-defaultConfig :: (Read (l Window), LayoutClass l Window) => XConfig l -> Config
-defaultConfig xconf = config
+defaultConfig :: Config
+defaultConfig = config
     where
       config = Config
-       { execute = xmonad xconf
+       { execute = xmonad XMC.defaultConfig
        , recompileCommand = do
              dir <- getXMonadDir
              binn <- binaryPath config
@@ -69,7 +71,9 @@ defaultConfig xconf = config
        }
 
 withHelper :: (Read (l Window), LayoutClass l Window) => XConfig l -> IO ()
-withHelper xconf = withCustomHelper (defaultConfig xconf)
+withHelper xconf = withCustomHelper conf
+   where
+     conf = defaultConfig { execute = xmonad xconf }
 
 withCustomHelper :: Config -> IO ()
 withCustomHelper conf = do

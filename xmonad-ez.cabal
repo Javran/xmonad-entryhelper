@@ -25,6 +25,9 @@ library
                        mtl,
                        extensible-exceptions,
                        unix,
+                       filepath,
+                       process,
+                       directory,
                        X11 >=1.5 && < 1.7,
                        xmonad >= 0.11 && < 0.12,
                        xmonad-contrib >= 0.11 && < 0.12
