@@ -3,6 +3,7 @@ module XMonad.Util.EntryHelper.Util
   , safeIO'
   , isHaskellSourceFile
   , allFiles
+  , sendRestart
   ) where
 
 import Control.Applicative
@@ -10,6 +11,8 @@ import Control.Monad
 import Control.Exception.Extensible
 import System.Directory
 import System.FilePath
+import Graphics.X11.Xlib
+import Graphics.X11.Xlib.Extras
 import Data.List
 
 -- | performs an IO action and captures all the exceptions,
@@ -33,3 +36,15 @@ allFiles t = do
     cs <- prep <$> safeIO [] (getDirectoryContents t)
     ds <- filterM doesDirectoryExist cs
     concat . ((cs \\ ds):) <$> mapM allFiles ds
+
+-- | sends restart request to the current XMonad instance
+sendRestart :: IO ()
+sendRestart = do
+    dpy <- openDisplay ""
+    rw <- rootWindow dpy $ defaultScreen dpy
+    xmonad_restart <- internAtom dpy "XMONAD_RESTART" False
+    allocaXEvent $ \e -> do
+        setEventType e clientMessage
+        setClientMessageEvent e rw xmonad_restart 32 0 currentTime
+        sendEvent dpy rw False structureNotifyMask e
+    sync dpy False
