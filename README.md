@@ -1,2 +1,2 @@
-# xmonad-ez
+# xmonad-entryhelper
 xmonad tools

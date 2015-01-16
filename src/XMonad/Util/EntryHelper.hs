@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleContexts, CPP #-}
-module XMonad.Util.MainHelper where
+module XMonad.Util.EntryHelper where
 
 import XMonad.Core hiding (recompile,config)
 import XMonad.Main
