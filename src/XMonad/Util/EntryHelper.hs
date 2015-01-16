@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts, CPP #-}
+{-# LANGUAGE FlexibleContexts #-}
 module XMonad.Util.EntryHelper where
 
 import XMonad.Core hiding (recompile,config)
@@ -6,7 +6,6 @@ import XMonad.Main
 
 import Data.Functor
 import Control.Exception.Extensible
-import Control.Monad
 import System.Environment
 import System.Exit
 import System.Posix.Process
@@ -23,6 +22,10 @@ import System.Posix.User
 import qualified XMonad.Config as XMC
 import Graphics.X11.Xinerama (compiledWithXinerama)
 
+import XMonad.Util.EntryHelper.Generated
+import XMonad.Util.EntryHelper.File
+import XMonad.Util.EntryHelper.Util
+
 data Config a = Config
   { run         :: IO ()
   , compile     :: Bool -> IO a
@@ -36,34 +39,18 @@ defaultConfig = Config
   , postCompile = defaultPostCompile
   }
 
--- | gets the absolute path to the xmonad binary file.
-getXMonadBin :: IO FilePath
-getXMonadBin =  (</> "xmonad-"++arch++"-"++os)
-            <$> getXMonadDir
-
--- | get the absolute path to the xmonad compile log.
-getXMonadCompileLog :: IO FilePath
-getXMonadCompileLog =  (</> "xmonad.errors")
-                 <$> getXMonadDir
-
-getXMonadSrc :: IO FilePath
-getXMonadSrc = (</> "xmonad.hs")
-            <$> getXMonadDir
-
-xmonadVersion :: String
-xmonadVersion = VERSION_xmonad
-
 withHelper :: Config a -> IO ()
 withHelper cfg = do
     args <- getArgs
     let launch = installSignalHandlers >> run cfg
+        recompile = compile cfg True >>= postCompile cfg
     case args of
         []                    -> launch
         ("--resume":_)        -> launch
         ["--help"]            -> printHelp
-        ["--recompile"]       -> compile cfg True >>= postCompile cfg
+        ["--recompile"]       -> recompile
         ["--replace"]         -> launch
-        ["--restart"]         -> sendRestart
+        ["--restart"]         -> safeIO () recompile >> sendRestart
         ["--version"]         -> putStrLn $ unwords shortVersion
         ["--verbose-version"] -> putStrLn . unwords $ shortVersion ++ longVersion
         _                     -> printHelp >> exitFailure
@@ -91,7 +78,7 @@ printHelp = do
 compileUsingShell :: String -> IO ExitCode
 compileUsingShell cmd = do
     dir <- getXMonadDir
-    compileLogPath <- getXMonadCompileLog
+    compileLogPath <- getXMonadLog
     hNullInput <- openFile "/dev/null" ReadMode
     hCompileLog <- openFile compileLogPath WriteMode
     hSetBuffering hCompileLog NoBuffering
@@ -104,41 +91,12 @@ compileUsingShell cmd = do
     (_,_,_,ph) <- createProcess cp
     waitForProcess ph
 
-isSourceNewer :: IO Bool
-isSourceNewer = do
-    dir <- getXMonadDir
-    bin <- getXMonadBin
-    let lib = dir </> "lib"
-        base = dir </> "xmonad"
-        src  = base ++ ".hs"
-    libTs <- mapM getModTime . filter isSource =<< allFiles lib
-    srcT <- getModTime src
-    binT <- getModTime bin
-    -- should be at least one element in (srcT: libTs)
-    -- and "Just _" is always greater than "Nothing"
-    -- therefore, this procedure returns true when one of the following happens:
-    -- - when the binary file doesn't exist
-    -- - when there are some source files newer than the binary
-    return $ any (binT <) (srcT : libTs)
-  where
-    getModTime fName = safeIO Nothing (Just <$> getModificationTime fName)
-    isSource = (`elem` words ".hs .lhs .hsc") . takeExtension
-    allFiles t = do
-        let prep = map (t </>) . filter (`notElem` [".", ".."])
-        cs <- prep <$> safeIO [] (getDirectoryContents t)
-        ds <- filterM doesDirectoryExist cs
-        concat . ((cs \\ ds):) <$> mapM allFiles ds
-
-safeIO :: a -> IO a -> IO a
-safeIO def action =
-    catch action (\(SomeException _) -> return def)
-
 defaultCompile :: Bool -> IO ExitCode
 defaultCompile force = do
     b <- isSourceNewer
     if force || b
       then do
-        bin <- getXMonadBin
+        bin <- binPath <$> getXMonadPaths
         let cmd = "ghc --make xmonad.hs -i -ilib -fforce-recomp -o " ++ bin
         compileUsingShell cmd
       else return ExitSuccess
@@ -146,7 +104,7 @@ defaultCompile force = do
 defaultPostCompile :: ExitCode -> IO ()
 defaultPostCompile ExitSuccess = return ()
 defaultPostCompile st@(ExitFailure _) = do
-    err <- getXMonadCompileLog
+    err <- getXMonadLog
     ghcErr <- readFile err
     src <- getXMonadSrc
     let msg = unlines $
