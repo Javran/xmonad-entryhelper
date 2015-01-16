@@ -20,7 +20,6 @@ library
   -- other-extensions:
   build-depends:       base,
                        mtl,
-                       time,
                        extensible-exceptions,
                        unix,
                        filepath,
