@@ -2,42 +2,23 @@
 module XMonad.Util.EntryHelper where
 
 import XMonad.Core hiding (recompile,config)
-import XMonad.Main
 
-import Data.Functor
 import Control.Exception.Extensible
 import System.Environment
 import System.Exit
-import System.Posix.Process
 import Graphics.X11.Xlib
 import Graphics.X11.Xlib.Extras
 import System.FilePath
-import System.IO
 import System.Info
-import System.Process
 import System.Directory
 import Data.Version (showVersion)
 import Data.List
 import System.Posix.User
-import qualified XMonad.Config as XMC
 import Graphics.X11.Xinerama (compiledWithXinerama)
 
 import XMonad.Util.EntryHelper.Generated
-import XMonad.Util.EntryHelper.File
 import XMonad.Util.EntryHelper.Util
-
-data Config a = Config
-  { run         :: IO ()
-  , compile     :: Bool -> IO a
-  , postCompile :: a -> IO ()
-  }
-
-defaultConfig :: Config ExitCode
-defaultConfig = Config
-  { run = xmonad XMC.defaultConfig
-  , compile = defaultCompile
-  , postCompile = defaultPostCompile
-  }
+import XMonad.Util.EntryHelper.Config
 
 withHelper :: Config a -> IO ()
 withHelper cfg = do
@@ -74,46 +55,6 @@ printHelp = do
       , "  --replace                    Replace the running window manager with XMonad"
       , "  --restart                    Request a running XMonad process to restart"
       ]
-
-compileUsingShell :: String -> IO ExitCode
-compileUsingShell cmd = do
-    dir <- getXMonadDir
-    compileLogPath <- getXMonadLog
-    hNullInput <- openFile "/dev/null" ReadMode
-    hCompileLog <- openFile compileLogPath WriteMode
-    hSetBuffering hCompileLog NoBuffering
-    let cp = (shell cmd)
-               { cwd     = Just dir
-               , std_in  = UseHandle hNullInput
-               , std_out = UseHandle hCompileLog
-               , std_err = UseHandle hCompileLog
-               }
-    (_,_,_,ph) <- createProcess cp
-    waitForProcess ph
-
-defaultCompile :: Bool -> IO ExitCode
-defaultCompile force = do
-    b <- isSourceNewer
-    if force || b
-      then do
-        bin <- binPath <$> getXMonadPaths
-        let cmd = "ghc --make xmonad.hs -i -ilib -fforce-recomp -o " ++ bin
-        compileUsingShell cmd
-      else return ExitSuccess
-
-defaultPostCompile :: ExitCode -> IO ()
-defaultPostCompile ExitSuccess = return ()
-defaultPostCompile st@(ExitFailure _) = do
-    err <- getXMonadLog
-    ghcErr <- readFile err
-    src <- getXMonadSrc
-    let msg = unlines $
-              [ "Error detected while loading xmonad configuration file: " ++ src]
-              ++ lines (if null ghcErr then show st else ghcErr)
-              ++ ["","Please check the file for errors."]
-    hPutStrLn stderr msg
-    _ <- forkProcess $ executeFile "xmessage" True ["-default", "okay", msg] Nothing
-    return ()
 
 sendRestart :: IO ()
 sendRestart = do

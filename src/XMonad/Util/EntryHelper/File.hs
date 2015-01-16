@@ -1,5 +1,6 @@
 module XMonad.Util.EntryHelper.File
   ( XMonadPaths(..)
+  , getXMonadDir
   , getXMonadPaths
   , getXMonadBin
   , getXMonadLog
