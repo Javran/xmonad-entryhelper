@@ -1,11 +1,10 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts, CPP #-}
 module XMonad.Util.MainHelper where
 
 import XMonad.Core hiding (recompile,config)
 import XMonad.Main
 
 import Data.Functor
-import Control.Applicative
 import Control.Exception.Extensible
 import Control.Monad
 import System.Environment
@@ -18,115 +17,145 @@ import System.IO
 import System.Info
 import System.Process
 import System.Directory
+import Data.Version (showVersion)
 import Data.List
 import System.Posix.User
-
 import qualified XMonad.Config as XMC
+import Graphics.X11.Xinerama (compiledWithXinerama)
 
-data Config = Config
-  { execute :: IO ()
-  , recompileCommand :: IO (FilePath, [String], Maybe FilePath)
-  , upToDateCheck :: IO Bool
-  , binaryPath :: IO FilePath
+data Config a = Config
+  { run         :: IO ()
+  , compile     :: Bool -> IO a
+  , postCompile :: a -> IO ()
   }
 
-defaultUpToDateCheck :: IO Bool
-defaultUpToDateCheck = do
-    dir <- getXMonadDir
-    let binn = "xmonad-"++arch++"-"++os
-        bin  = dir </> binn
-        base = dir </> "xmonad"
-        src  = base ++ ".hs"
-        lib  = dir </> "lib"
-    libTs <- mapM getModTime . Prelude.filter isSource =<< allFiles lib
-    srcT <- getModTime src
-    binT <- getModTime bin
-    return $ not $ any (binT <) (srcT : libTs)
-  where
-    getModTime f = catch (Just <$> getModificationTime f) (\(SomeException _) -> return Nothing)
-    isSource = flip elem [".hs",".lhs",".hsc"] . takeExtension
-    allFiles t = do
-        let prep = map (t</>) . Prelude.filter (`notElem` [".",".."])
-        cs <- prep <$> catch (getDirectoryContents t) (\(SomeException _) -> return [])
-        ds <- filterM doesDirectoryExist cs
-        concat . ((cs \\ ds):) <$> mapM allFiles ds
+defaultConfig :: Config ExitCode
+defaultConfig = Config
+  { run = xmonad XMC.defaultConfig
+  , compile = defaultCompile
+  , postCompile = defaultPostCompile
+  }
 
-defaultConfig :: Config
-defaultConfig = config
-    where
-      config = Config
-       { execute = xmonad XMC.defaultConfig
-       , recompileCommand = do
-             dir <- getXMonadDir
-             binn <- binaryPath config
-             return ( "ghc"
-                    , [ "--make", "xmonad.hs"
-                      , "-i", "-ilib", "-fforce-recomp"
-                      , "-v0"
-                      , "-o", binn]
-                    , Just dir)
-       , upToDateCheck = defaultUpToDateCheck
-       , binaryPath = do
-           dir <- getXMonadDir
-           return $ dir </> "xmonad-"++arch++"-"++os
-       }
+-- | gets the absolute path to the xmonad binary file.
+getXMonadBin :: IO FilePath
+getXMonadBin =  (</> "xmonad-"++arch++"-"++os)
+            <$> getXMonadDir
 
-withHelper :: (Read (l Window), LayoutClass l Window) => XConfig l -> IO ()
-withHelper xconf = withCustomHelper conf
-   where
-     conf = defaultConfig { execute = xmonad xconf }
+-- | get the absolute path to the xmonad compile log.
+getXMonadCompileLog :: IO FilePath
+getXMonadCompileLog =  (</> "xmonad.errors")
+                 <$> getXMonadDir
 
-withCustomHelper :: Config -> IO ()
-withCustomHelper conf = do
-    installSignalHandlers
+getXMonadSrc :: IO FilePath
+getXMonadSrc = (</> "xmonad.hs")
+            <$> getXMonadDir
+
+xmonadVersion :: String
+xmonadVersion = VERSION_xmonad
+
+withHelper :: Config a -> IO ()
+withHelper cfg = do
     args <- getArgs
-    let launch = catchIO (buildAndLaunch conf) >> execute conf
+    let launch = installSignalHandlers >> run cfg
     case args of
         []                    -> launch
         ("--resume":_)        -> launch
-        ["--help"]            -> printUsage >> exitFailure
-        ["--recompile"]       -> withLock (recompile conf) >>= exitWith
+        ["--help"]            -> printHelp
+        ["--recompile"]       -> compile cfg True >>= postCompile cfg
         ["--replace"]         -> launch
         ["--restart"]         -> sendRestart
-        ["--version"]         -> printVersion False
-        ["--verbose-version"] -> printVersion True
-        _                     -> printUsage >> exitFailure
+        ["--version"]         -> putStrLn $ unwords shortVersion
+        ["--verbose-version"] -> putStrLn . unwords $ shortVersion ++ longVersion
+        _                     -> printHelp >> exitFailure
+ where
+    shortVersion = [ "xmonad", xmonadVersion ]
+    longVersion  = [ "compiled by", compilerName, showVersion compilerVersion
+                   , "for",  arch ++ "-" ++ os
+                   , "\nXinerama:", show compiledWithXinerama ]
 
-buildAndLaunch :: Config -> IO ()
-buildAndLaunch c = do
-    upToDate <- upToDateCheck c
-    if upToDate
-      then void launch
-      else do ec <- withLock (recompile c)
-              case ec of
-                ExitSuccess -> void launch
-                ExitFailure v -> do
-                  putStrLn $ "recompile failed with exitcode " ++ show v
-                  exitFailure
-  where
-    launch = executeFile <$> binaryPath c
-                         <*> pure False
-                         <*> getArgs
-                         <*> pure Nothing
+printHelp :: IO ()
+printHelp = do
+    self <- getProgName
+    putStr . unlines $
+      [ "xmonad-entryhelper - XMonad config entry point wrapper"
+      , ""
+      , "Usage: " ++ self ++ " [OPTION]"
+      , "Options:"
+      , "  --help                       Print this message"
+      , "  --version                    Print XMonad's version number"
+      , "  --recompile                  Recompile XMonad"
+      , "  --replace                    Replace the running window manager with XMonad"
+      , "  --restart                    Request a running XMonad process to restart"
+      ]
 
-recompile :: Config -> IO ExitCode
-recompile c = do
+compileUsingShell :: String -> IO ExitCode
+compileUsingShell cmd = do
     dir <- getXMonadDir
-    let base = dir </> "xmonad"
-        err  = base ++ ".errors"
-    (cmd,args,cmpDir) <- recompileCommand c
-    uninstallSignalHandlers
-    status <- bracket (openFile err WriteMode) hClose $ \h ->
-            waitForProcess =<< runProcess cmd args cmpDir Nothing
-                                   Nothing (Just h) (Just h)
-    installSignalHandlers
-    return status
+    compileLogPath <- getXMonadCompileLog
+    hNullInput <- openFile "/dev/null" ReadMode
+    hCompileLog <- openFile compileLogPath WriteMode
+    hSetBuffering hCompileLog NoBuffering
+    let cp = (shell cmd)
+               { cwd     = Just dir
+               , std_in  = UseHandle hNullInput
+               , std_out = UseHandle hCompileLog
+               , std_err = UseHandle hCompileLog
+               }
+    (_,_,_,ph) <- createProcess cp
+    waitForProcess ph
 
-printUsage :: IO ()
-printUsage = putStrLn "TODO"
+isSourceNewer :: IO Bool
+isSourceNewer = do
+    dir <- getXMonadDir
+    bin <- getXMonadBin
+    let lib = dir </> "lib"
+        base = dir </> "xmonad"
+        src  = base ++ ".hs"
+    libTs <- mapM getModTime . filter isSource =<< allFiles lib
+    srcT <- getModTime src
+    binT <- getModTime bin
+    -- should be at least one element in (srcT: libTs)
+    -- and "Just _" is always greater than "Nothing"
+    -- therefore, this procedure returns true when one of the following happens:
+    -- - when the binary file doesn't exist
+    -- - when there are some source files newer than the binary
+    return $ any (binT <) (srcT : libTs)
+  where
+    getModTime fName = safeIO Nothing (Just <$> getModificationTime fName)
+    isSource = (`elem` words ".hs .lhs .hsc") . takeExtension
+    allFiles t = do
+        let prep = map (t </>) . filter (`notElem` [".", ".."])
+        cs <- prep <$> safeIO [] (getDirectoryContents t)
+        ds <- filterM doesDirectoryExist cs
+        concat . ((cs \\ ds):) <$> mapM allFiles ds
 
-printVersion :: Bool -> IO ()
-printVersion _ = putStrLn "TODO"
+safeIO :: a -> IO a -> IO a
+safeIO def action =
+    catch action (\(SomeException _) -> return def)
+
+defaultCompile :: Bool -> IO ExitCode
+defaultCompile force = do
+    b <- isSourceNewer
+    if force || b
+      then do
+        bin <- getXMonadBin
+        let cmd = "ghc --make xmonad.hs -i -ilib -fforce-recomp -o " ++ bin
+        compileUsingShell cmd
+      else return ExitSuccess
+
+defaultPostCompile :: ExitCode -> IO ()
+defaultPostCompile ExitSuccess = return ()
+defaultPostCompile st@(ExitFailure _) = do
+    err <- getXMonadCompileLog
+    ghcErr <- readFile err
+    src <- getXMonadSrc
+    let msg = unlines $
+              [ "Error detected while loading xmonad configuration file: " ++ src]
+              ++ lines (if null ghcErr then show st else ghcErr)
+              ++ ["","Please check the file for errors."]
+    hPutStrLn stderr msg
+    _ <- forkProcess $ executeFile "xmessage" True ["-default", "okay", msg] Nothing
+    return ()
 
 sendRestart :: IO ()
 sendRestart = do
@@ -139,15 +168,17 @@ sendRestart = do
         sendEvent dpy rw False structureNotifyMask e
     sync dpy False
 
-withLock :: IO ExitCode -> IO ExitCode
-withLock action = do
+withLock :: a -> IO a -> IO a
+withLock def action = do
     tmpDir <- getTemporaryDirectory
-    usr <- getLoginName
+    -- https://ghc.haskell.org/trac/ghc/ticket/1487
+    -- avoid using "getLoginName" here
+    usr <- getEffectiveUserName
     let lockFile = tmpDir </> intercalate "." ["xmonad",usr,"lock"]
-    withFileLock lockFile action
+    withFileLock lockFile def action
 
-withFileLock :: FilePath -> IO ExitCode -> IO ExitCode
-withFileLock fPath action = do
+withFileLock :: FilePath -> a -> IO a -> IO a
+withFileLock fPath def action = do
     lock <- doesFileExist fPath
     if lock
       then skipCompile
@@ -156,7 +187,7 @@ withFileLock fPath action = do
     skipCompile = do
         putStrLn $ "Lock file " ++ fPath ++ " found, aborting ..."
         putStrLn   "Delete lock file to continue."
-        return (ExitFailure 1)
+        return def
     doCompile = bracket (writeFile fPath "")
                         (const (removeFile fPath))
                         (const action)
