@@ -49,7 +49,8 @@ defaultPostCompile st@(ExitFailure _) = do
     _ <- forkProcess $ executeFile "xmessage" True ["-default", "okay", msg] Nothing
     return ()
 
--- | @compileUsingShell cmd@ spawns new process to run a shell command.
+-- | @compileUsingShell cmd@ spawns a new process to run a shell command
+--   (shell expansion is applied).
 --   The working directory of the shell command is @"~\/.xmonad\/"@, and
 --   the process' stdout and stdout are redirected to @"~\/.xmonad\/xmonad.errors"@
 compileUsingShell :: String -> IO ExitCode

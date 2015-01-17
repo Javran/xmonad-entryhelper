@@ -30,6 +30,9 @@ import XMonad.Util.EntryHelper.Compile
 --
 --   Note that:
 --
+--   * @compile@ should create a new process for compilation, as otherwise things like `executeFile`
+--     will replace the current process image with a new process image, make it impossible
+--     for @postCompile@ to invoke.
 --   * @force@ is just a hint about whether the compilation should be forced.
 --     and @compile@ is free to ignore it and do up-to-date checking on its own.
 --   * don't remove the binary file when the compilation has failed, as XMonad restart relies

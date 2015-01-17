@@ -57,10 +57,14 @@ a protected environment like those created by [hsenv](https://github.com/tmhedbe
         main :: IO ()
         main = withHelper oldMain
 
-    If you are using the default "restart xmonad" action in your keybinding (typically `mod-q`),
-    you don't have to do anything. This project handles `xmonad --recompile && xmonad --restart`
-    properly. It's recommended to leave it `xmonad --recompile && xmonad --restart` since this
-    works for both the original XMonad and this EntryHelper.
+    It is recommended to set the "restart xmonad" action (typically `mod-q` in your keybinding)
+    to just invoke `xmonad --restart`. Although the default action,
+    essentially `xmonad --recompile && xmonad --restart` should work properly,
+    argument `--recompile` forces the compilation (which might involve
+    removing all binaries and compiling everything).
+    If you are using a build system like `make` or `cabal`,
+    forcing a compilation might not be a desired behavior as build systems are in general designed
+    to prevent recompilation.
 
 2. Finally you need to have a writable local `PATH` directory.
 
@@ -138,14 +142,46 @@ assumably intended for internal use only):
         leaving the job of up-to-date checking
         to the build system would be the simplest approach.
 
+* When invoked with `--restart`:
+
+    * EntryHelper will try to recompile (without forcing) before sending the request
+    * both XMonad and EntryHelper send the restart request
 
 ## Advanced features
 
-* Customized shell command compilation
-
 * Customized compilation and post-compilation handling
 
+    By passing a `Config` (from `XMonad.Util.EntryHelper.Config`) to `withCustomHelper`,
+    it is possible to customize the compilation and post-compilation actions.
+    Read document of `Config` for detail.
+
+* Customized shell command compilation
+
+    You can invoke an arbitrary shell command to do the compilation using
+    `compileUsingShell` from `XMonad.Util.EntryHelper.Compile`, the working
+    directory for this shell command will be `~/.xmonad` and its `stdout` and `stderr`
+    outputs will be redirected into `~/.xmonad/xmonad.errors`.
+
+    Assuming you have set your environment variable `${XMONAD_HOME}` to point to the project home directory,
+    and you are using `Makefile` to handle the compilation, the following example should work for you:
+
+
+        import qualified XMonad.Util.EntryHelper as EH
+
+        main :: IO ()
+        main = EH.withCustomHelper mhConf
+          where
+            mhConf = EH.defaultConfig
+                     { EH.run = oldMain
+                     , EH.compile = \force -> do
+                             let cmd = if force
+                               then "cd ${XMONAD_HOME} && make clean && make all"
+                               else "cd ${XMONAD_HOME} && make all"
+                             EH.compileUsingShell cmd
+                     }
+
 * Parallel compilation protection
+
 
 * Sending restart request to current xmonad instance
 
