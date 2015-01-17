@@ -2,6 +2,8 @@
 
 [![Build Status](https://travis-ci.org/Javran/xmonad-entryhelper.svg?branch=master)](https://travis-ci.org/Javran/xmonad-entryhelper)
 
+[![Version](https://img.shields.io/hackage/v/xmonad-entryhelper.svg)](https://hackage.haskell.org/package/xmonad-entryhelper)
+
 xmonad-entryhelper makes your compiled XMonad config a standalone binary.
 
 It simulates the XMonad's argument handling
