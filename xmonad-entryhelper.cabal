@@ -2,7 +2,10 @@ name:                xmonad-entryhelper
 version:             0.1.0.0
 synopsis:            XMonad config entry point wrapper
 description:
-
+  xmonad-entryhelper makes your compiled XMonad config a standalone binary.
+  .
+  It simulates the XMonad's argument handling and supports customized compliation.
+  .
   Please check
   <https://github.com/Javran/xmonad-entryhelper/blob/master/README.md README>
   for details.
@@ -32,7 +35,7 @@ library
                        XMonad.Util.EntryHelper.Config
                        XMonad.Util.EntryHelper.Generated
 
-  build-depends:       base,
+  build-depends:       base <5,
                        mtl,
                        extensible-exceptions,
                        unix,
