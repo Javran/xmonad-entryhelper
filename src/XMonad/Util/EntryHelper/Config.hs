@@ -95,14 +95,14 @@ withCustomHelper cfg = do
     -- and otherwise an alternative command line argument parsing strategy will be applied.
     args <- getArgs
     let launch = installSignalHandlers >> run cfg
-        recompile = compile cfg True >>= postCompile cfg
+        recompile force = compile cfg force >>= postCompile cfg
     case args of
         []                    -> launch
         ("--resume":_)        -> launch
         ["--help"]            -> printHelp
-        ["--recompile"]       -> recompile
+        ["--recompile"]       -> recompile True
         ["--replace"]         -> launch
-        ["--restart"]         -> safeIO () recompile >> sendRestart
+        ["--restart"]         -> safeIO () (recompile False)>> sendRestart
         ["--version"]         -> putStrLn $ unwords shortVersion
         ["--verbose-version"] -> putStrLn . unwords $ shortVersion ++ longVersion
         _                     -> printHelp >> exitFailure
