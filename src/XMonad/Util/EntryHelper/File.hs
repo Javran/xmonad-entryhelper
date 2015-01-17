@@ -11,7 +11,7 @@ module XMonad.Util.EntryHelper.File
 
 import Control.Applicative
 import System.FilePath
-import XMonad.Core
+import qualified XMonad.Core as XC
 import System.Info
 import System.Directory
 
@@ -35,8 +35,10 @@ getXMonadPaths = (XMonadPaths
   <*> (</> "xmonad.hs")               -- src
   <*> (</> "lib")) <$> getXMonadDir   -- lib
 
-getXMonadBin, getXMonadLog, getXMonadSrc, getXMonadLibDir :: IO FilePath
+-- | gets information about XMonad-related paths, see also: 'XMonadPaths'
+getXMonadBin, getXMonadLog, getXMonadSrc, getXMonadLibDir, getXMonadDir :: IO FilePath
 
+getXMonadDir = XC.getXMonadDir
 getXMonadBin = binPath <$> getXMonadPaths
 getXMonadLog = logPath <$> getXMonadPaths
 getXMonadSrc = srcPath <$> getXMonadPaths
