@@ -74,7 +74,8 @@ compileUsingShell cmd = do
     waitForProcess ph
 
 -- | @withLock def action@ is the same as @withFileLock fpath def action@ with
---   @fpath@ being @"xmonad.${USERNAME}.lock"@.
+--   @fpath@ being @"xmonad.${USERNAME}.lock"@ under your temporary directory.
+--   Wrapping an action with more than one @withLock@ will not work.
 --
 --   See also: `withFileLock`, 'getTemporaryDirectory', 'getEffectiveUserName'
 withLock :: a -> IO a -> IO a

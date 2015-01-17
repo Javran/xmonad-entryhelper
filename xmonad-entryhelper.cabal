@@ -1,14 +1,19 @@
 name:                xmonad-entryhelper
 version:             0.1.0.0
-synopsis:            xmonad tools
--- description:
+synopsis:            XMonad config entry point wrapper
+description:
+
+  Please check
+  <https://github.com/Javran/xmonad-entryhelper/blob/master/README.md README>
+  for details.
+
 homepage:            https://github.com/Javran/xmonad-entryhelper
 license:             MIT
 license-file:        LICENSE
 author:              Javran Cheng
 maintainer:          Javran.c@gmail.com
--- copyright:
--- category:
+copyright:           Copyright (c) 2015 Javran Cheng
+category:            XMonad
 build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
@@ -16,8 +21,12 @@ cabal-version:       >=1.10
 library
   exposed-modules:
                        XMonad.Util.EntryHelper
-  -- other-modules:
-  -- other-extensions:
+                       XMonad.Util.EntryHelper.Util
+                       XMonad.Util.EntryHelper.Compile
+                       XMonad.Util.EntryHelper.File
+                       XMonad.Util.EntryHelper.Config
+                       XMonad.Util.EntryHelper.Generated
+
   build-depends:       base,
                        mtl,
                        extensible-exceptions,
