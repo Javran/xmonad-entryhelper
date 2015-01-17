@@ -115,7 +115,6 @@ withFileLock fPath def action = do
         putStrLn $ "Lock file " ++ fPath ++ " found, aborting ..."
         putStrLn   "Delete lock file to continue."
         return def
-    -- TODO: bracket'
-    doCompile = bracket (writeFile fPath "")
-                        (const (removeFile fPath))
-                        (const (safeIO def action))
+    doCompile = bracket_ (writeFile fPath "")
+                         (removeFile fPath)
+                         (safeIO def action)
