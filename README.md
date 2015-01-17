@@ -1,7 +1,6 @@
 # xmonad-entryhelper
 
 [![Build Status](https://travis-ci.org/Javran/xmonad-entryhelper.svg?branch=master)](https://travis-ci.org/Javran/xmonad-entryhelper)
-
 [![Version](https://img.shields.io/hackage/v/xmonad-entryhelper.svg)](https://hackage.haskell.org/package/xmonad-entryhelper)
 
 xmonad-entryhelper makes your compiled XMonad config a standalone binary.
@@ -132,7 +131,7 @@ assumably intended for internal use only):
         This routing only works if XMonad binary and the binary compiled by XMonad
         are two different programs. But as EntryHelper wants to make your compiled
         binary and the XMonad program the same file, the same routing will cause
-        an infinite loop (`1 => 2 => 3 => 1 ...`).
+        an infinite loop (`start => check => execute => start ...`).
 
         To solve this problem, in EntryHelper the up-to-date checking
         is considered one part of the compilation. And the compilation
