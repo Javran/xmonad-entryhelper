@@ -1,8 +1,8 @@
 # xmonad-entryhelper
 
-[![Build Status](https://travis-ci.org/Javran/xmonad-entryhelper.svg?branch=master)](https://travis-ci.org/Javran/xmonad-entryhelper)
+    [![Build Status](https://travis-ci.org/Javran/xmonad-entryhelper.svg?branch=master)](https://travis-ci.org/Javran/xmonad-entryhelper)
 
-[![Version](https://img.shields.io/hackage/v/xmonad-entryhelper.svg)](https://hackage.haskell.org/package/xmonad-entryhelper)
+    [![Version](https://img.shields.io/hackage/v/xmonad-entryhelper.svg)](https://hackage.haskell.org/package/xmonad-entryhelper)
 
 xmonad-entryhelper makes your compiled XMonad config a standalone binary.
 
@@ -12,7 +12,8 @@ and supports customized compliation.
 **Table of Contents**
 
 - [Introduction](#introduction)
-- [Simple Setup](#simple-setup)
+- [Simple setup](#simple-setup)
+- [Argument handling](#argument-handling)
 - [Advanced features](#advanced-features)
 - [Feedback](#feedback)
 
@@ -24,7 +25,7 @@ Instead, you can keep your XMonad configurations either as a local
 [cabal sandbox](https://www.fpcomplete.com/school/to-infinity-and-beyond/older-but-still-interesting/an-introduction-to-cabal-sandboxes-copy) or within
 a protected environment like those created by [hsenv](https://github.com/tmhedberg/hsenv)
 
-## Simple Setup
+## Simple setup
 
 1. After installation, modify your `xmonad.hs` accordingly:
 
@@ -55,6 +56,11 @@ a protected environment like those created by [hsenv](https://github.com/tmhedbe
         -- your new main entry point
         main :: IO ()
         main = withHelper oldMain
+
+    If you are using the default "restart xmonad" action in your keybinding (typically `mod-q`),
+    you don't have to do anything. This project handles `xmonad --recompile && xmonad --restart`
+    properly. It's recommended to leave it `xmonad --recompile && xmonad --restart` since this
+    works for both the original XMonad and this EntryHelper.
 
 2. Finally you need to have a writable local `PATH` directory.
 
@@ -99,6 +105,40 @@ Because your compiled XMonad will work on its own:
           --replace                    Replace the running window manager with XMonad
           --restart                    Request a running XMonad process to restart
 
+## Argument handling
+
+Although this projects tries to resemble the argument handling behavior of XMonad,
+there are not exact the same. The differences are:
+
+* When invoked without argument or with `--replace` or `--resume` (this argument is not documented,
+assumably intended for internal use only):
+
+    * XMonad always does up-to-date checking internally and compile source codes as needed before
+      invocations
+
+    * EntryHelper doesn't do up-to-date checking.
+
+        (TL;DR) This is because XMonad is using the following routing when executed:
+
+        1. XMonad started
+        2. Check for source files and recompile as needed
+        3. Execute the compiled binary
+        4. If any goes wrong, start xmonad using default configuration
+
+        This routing only works if XMonad binary and the binary compiled by XMonad
+        are two different programs. But as EntryHelper wants to make your compiled
+        binary and the XMonad program the same file, the same routing will cause
+        an infinite loop (`1 => 2 => 3 => 1 ...`).
+
+        To solve this problem, in EntryHelper the up-to-date checking
+        is considered one part of the compilation. And the compilation
+        will not be executed unless `--recompile` or `--restart` is given.
+
+        Additionally, if you are using a build system like `make` or `cabal` to handle compilation,
+        leaving the job of up-to-date checking
+        to the build system would be the simplest approach.
+
+
 ## Advanced features
 
 * Customized shell command compilation
@@ -108,6 +148,15 @@ Because your compiled XMonad will work on its own:
 * Parallel compilation protection
 
 * Sending restart request to current xmonad instance
+
+    `sendRestart` from `XMonad.Util.EntryHelper.Util` is an exact copy of the same
+    function found in XMonad (unfortunately XMonad doesn't export it).
+    Simply calling this function will sent a restart request to the running XMonad
+    instance.
+
+    Note that XMonad restarts by looking for the compiled binary to replace it,
+    which means the binary file (e.g. `~/.xmonad/xmonad-x86_64-linux`) has to exist
+    or otherwise your window manager session will crash.
 
 ## Feedback
 
