@@ -1,10 +1,18 @@
 # xmonad-entryhelper
 
+[![Build Status](https://travis-ci.org/Javran/xmonad-entryhelper.svg?branch=master)](https://travis-ci.org/Javran/xmonad-entryhelper)
+
 xmonad-entryhelper makes your compiled XMonad config a standalone binary.
 
 It simulates the XMonad's argument handling
 and supports customized compliation.
 
+**Table of Contents**
+
+- [Introduction](#introduction)
+- [Simple Setup](#simple-setup)
+- [Advanced features](#advanced-features)
+- [Feedback](#feedback)
 
 ## Introduction
 
@@ -88,3 +96,17 @@ Because your compiled XMonad will work on its own:
           --recompile                  Recompile XMonad
           --replace                    Replace the running window manager with XMonad
           --restart                    Request a running XMonad process to restart
+
+## Advanced features
+
+* Customized shell command compilation
+
+* Customized compilation and post-compilation handling
+
+* Parallel compilation protection
+
+* Sending restart request to current xmonad instance
+
+## Feedback
+
+Feel free to open issues for either bug report, enhancement or discussion.

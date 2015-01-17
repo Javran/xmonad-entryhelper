@@ -8,6 +8,7 @@ description:
   for details.
 
 homepage:            https://github.com/Javran/xmonad-entryhelper
+bug-reports:         https://github.com/Javran/xmonad-entryhelper/issues
 license:             MIT
 license-file:        LICENSE
 author:              Javran Cheng
@@ -17,6 +18,10 @@ category:            XMonad
 build-type:          Simple
 extra-source-files:  README.md, CHANGELOG.md
 cabal-version:       >=1.10
+
+source-repository head
+  type: git
+  location: https://github.com/Javran/xmonad-entryhelper.git
 
 library
   exposed-modules:
