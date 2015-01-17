@@ -11,12 +11,15 @@
 module XMonad.Util.EntryHelper.Compile
   ( defaultCompile
   , defaultPostCompile
+  , postCompileCheckLog
   , compileUsingShell
   , withFileLock
   , withLock
   ) where
 
+import Data.Functor
 import Control.Applicative
+import Control.Monad
 import System.IO
 import System.Posix.Process
 import System.Process
@@ -44,20 +47,29 @@ defaultCompile force = do
       else return ExitSuccess
 
 -- | the default post-compiling action.
---   prints out error log to stderr and pops up a message
---   when the last compilation has failed.
+--   same as @postCompileCheckLog errlog@
+--   where @errlog@ is the default error log location
+--   (usually @"~\/.xmonad\/xmonad.errors"@)
+--   see also: 'postCompileCheckLog'
 defaultPostCompile :: ExitCode -> IO ()
-defaultPostCompile ExitSuccess = return ()
-defaultPostCompile st@(ExitFailure _) = do
-    ghcErr <- readFile =<< getXMonadLog
-    src <- getXMonadSrc
+defaultPostCompile e = join (postCompileCheckLog <$> getXMonadLog
+                                                 <*> pure e)
+-- | a post-compiling action.
+--   @postCompileCheckLog fp ec@
+--   first checks the 'ExitCode' given, if it is not equal to 'ExitSuccess',
+--   prints out error log to stderr and pops up a message
+--   containing the error log.
+--   the error log is indicated by @fpath@
+postCompileCheckLog :: FilePath -> ExitCode -> IO ()
+postCompileCheckLog _ ExitSuccess = return ()
+postCompileCheckLog fpath st@(ExitFailure _) = do
+    ghcErr <- readFile fpath
     let msg = unlines $
-              [ "Error detected while loading xmonad configuration file: " ++ src]
+              [ "Error detected while loading xmonad configuration file(s)" ]
               ++ lines (if null ghcErr then show st else ghcErr)
               ++ ["","Please check the file for errors."]
     hPutStrLn stderr msg
-    _ <- forkProcess $ executeFile "xmessage" True ["-default", "okay", msg] Nothing
-    return ()
+    void $ forkProcess $ executeFile "xmessage" True ["-default", "okay", msg] Nothing
 
 -- | @compileUsingShell cmd@ spawns a new process to run a shell command
 --   (shell expansion is applied).
