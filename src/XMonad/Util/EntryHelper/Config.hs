@@ -1,3 +1,13 @@
+{-|
+  Copyright   : (c) 2015 Javran Cheng
+  License     : MIT
+  Maintainer  : Javran.C@gmail.com
+  Stability   : unstable
+  Portability : non-portable (requires X11)
+
+  Configuration for EntryHelper
+
+-}
 module XMonad.Util.EntryHelper.Config
   ( Config(..)
   , defaultConfig

@@ -1,3 +1,13 @@
+{-|
+  Copyright   : (c) 2015 Javran Cheng
+  License     : MIT
+  Maintainer  : Javran.C@gmail.com
+  Stability   : unstable
+  Portability : non-portable (requires X11)
+
+  Miscellaneous utilities for safe IO action, scanning files, sending X events, etc.
+
+-}
 module XMonad.Util.EntryHelper.Util
   ( safeIO
   , safeIO'
