@@ -105,7 +105,7 @@ withCustomHelper cfg = do
         ["--help"]            -> printHelp
         ["--recompile"]       -> recompile True
         ["--replace"]         -> launch
-        ["--restart"]         -> safeIO () (recompile False)>> sendRestart
+        ["--restart"]         -> safeIO () (recompile False) >> sendRestart
         ["--version"]         -> putStrLn $ unwords shortVersion
         ["--verbose-version"] -> putStrLn . unwords $ shortVersion ++ longVersion
         _                     -> printHelp >> exitFailure

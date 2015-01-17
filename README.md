@@ -1,8 +1,8 @@
 # xmonad-entryhelper
 
-    [![Build Status](https://travis-ci.org/Javran/xmonad-entryhelper.svg?branch=master)](https://travis-ci.org/Javran/xmonad-entryhelper)
+[![Build Status](https://travis-ci.org/Javran/xmonad-entryhelper.svg?branch=master)](https://travis-ci.org/Javran/xmonad-entryhelper)
 
-    [![Version](https://img.shields.io/hackage/v/xmonad-entryhelper.svg)](https://hackage.haskell.org/package/xmonad-entryhelper)
+[![Version](https://img.shields.io/hackage/v/xmonad-entryhelper.svg)](https://hackage.haskell.org/package/xmonad-entryhelper)
 
 xmonad-entryhelper makes your compiled XMonad config a standalone binary.
 
@@ -162,9 +162,10 @@ assumably intended for internal use only):
     directory for this shell command will be `~/.xmonad` and its `stdout` and `stderr`
     outputs will be redirected into `~/.xmonad/xmonad.errors`.
 
-    Assuming you have set your environment variable `${XMONAD_HOME}` to point to the project home directory,
-    and you are using `Makefile` to handle the compilation, the following example should work for you:
-
+    Assuming you have set your environment variable `${XMONAD_HOME}`
+    to point to the project home directory,
+    and you are using `Makefile` to handle the compilation,
+    the following example should work for you:
 
         import qualified XMonad.Util.EntryHelper as EH
 
@@ -182,6 +183,36 @@ assumably intended for internal use only):
 
 * Parallel compilation protection
 
+    You might find `withLock` from `XMonad.Util.EntryHelper.Compile` useful
+    to prevent yourself from parallel compilation
+    (this is usually caused by hitting `mod-q` rapidly multiple times...).
+    It creates a temprary file (typically `/tmp/xmonad.{username}.lock`) before compiling
+    and deletes it after the compilation is done. When this temprary file exists,
+    no other protected action with the same
+    file lock is allowed to proceed and will return with a default value.
+
+    To protect an `action` from parallel execution, all you have to do is to
+    replace it with `withLock def action`, with `def` being a default value to return
+    when it hits a file lock.
+
+    Continue from the previous example:
+
+        import qualified XMonad.Util.EntryHelper as EH
+
+        main :: IO ()
+        main = EH.withCustomHelper mhConf
+          where
+            mhConf = EH.defaultConfig
+                     { EH.run = oldMain
+                     -- adding "EH.withLock ExitSuccess $"
+                     , EH.compile = \force -> EH.withLock ExitSuccess $ do
+                             let cmd = if force
+                               then "cd ${XMONAD_HOME} && make clean && make all"
+                               else "cd ${XMONAD_HOME} && make all"
+                             EH.compileUsingShell cmd
+                     }
+
+    Be careful not to protect an action more than once.
 
 * Sending restart request to current xmonad instance
 
