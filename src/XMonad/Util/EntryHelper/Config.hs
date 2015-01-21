@@ -107,7 +107,7 @@ withCustomHelper cfg = do
     -- try to simulate "xmonad" when the program name is "xmonad",
     -- and otherwise an alternative command line argument parsing strategy will be applied.
     args <- getArgs
-    let launch = installSignalHandlers >> run cfg
+    let launch = run cfg
         recompile force = compile cfg force >>= postCompile cfg
     case args of
         []                    -> launch
