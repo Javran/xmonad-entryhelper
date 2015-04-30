@@ -44,7 +44,7 @@ library
                        directory,
                        X11,
                        xmonad,
-                       xmonad-contrib
+                       xmonad-contrib <0.11.4
 
   hs-source-dirs:      src
   ghc-options:         -Wall
