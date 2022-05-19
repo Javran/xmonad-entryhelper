@@ -1,5 +1,5 @@
 name:                xmonad-entryhelper
-version:             0.1.0.0
+version:             0.2.0.0
 synopsis:            XMonad config entry point wrapper
 description:
   xmonad-entryhelper makes your compiled XMonad config a standalone binary.
