@@ -48,7 +48,7 @@ getXMonadPaths = (XMonadPaths
 -- | gets information about XMonad-related paths, see also: 'XMonadPaths'
 getXMonadBin, getXMonadLog, getXMonadSrc, getXMonadLibDir, getXMonadDir :: IO FilePath
 
-getXMonadDir = XC.getXMonadDir
+getXMonadDir = XC.cfgDir <$> XC.getDirectories
 getXMonadBin = binPath <$> getXMonadPaths
 getXMonadLog = logPath <$> getXMonadPaths
 getXMonadSrc = srcPath <$> getXMonadPaths

@@ -57,7 +57,7 @@ data Config a = Config
 --   invokes xmonad with its default config file
 defaultConfig :: Config ExitCode
 defaultConfig = Config
-  { run = xmonad XMC.defaultConfig
+  { run = xmonad XMC.def
   , compile = defaultCompile
   , postCompile = defaultPostCompile
   }

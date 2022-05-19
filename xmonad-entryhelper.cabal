@@ -43,8 +43,8 @@ library
                        process,
                        directory,
                        X11,
-                       xmonad,
-                       xmonad-contrib <0.11.4
+                       xmonad >=0.17.0,
+                       xmonad-contrib
 
   hs-source-dirs:      src
   ghc-options:         -Wall
