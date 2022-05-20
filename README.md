@@ -175,8 +175,8 @@ assumably intended for internal use only):
                      { EH.run = oldMain
                      , EH.compile = \force -> do
                              let cmd = if force
-                               then "cd ${XMONAD_HOME} && make clean && make all"
-                               else "cd ${XMONAD_HOME} && make all"
+                                   then "cd ${XMONAD_HOME} && make clean && make all"
+                                   else "cd ${XMONAD_HOME} && make all"
                              EH.compileUsingShell cmd
                      }
 
@@ -206,12 +206,49 @@ assumably intended for internal use only):
                      -- adding "EH.withLock ExitSuccess $"
                      , EH.compile = \force -> EH.withLock ExitSuccess $ do
                              let cmd = if force
-                               then "cd ${XMONAD_HOME} && make clean && make all"
-                               else "cd ${XMONAD_HOME} && make all"
+                                   then "cd ${XMONAD_HOME} && make clean && make all"
+                                   else "cd ${XMONAD_HOME} && make all"
                              EH.compileUsingShell cmd
                      }
 
     Be careful not to protect an action more than once.
+
+    You may enchance above example further: by default hitting `mod-q`
+    executes `xmonad --recompile && xmonad --restart` through shell and you
+    may want to avoid restarting xmonad, if recompilation failed to run (due
+    to existing lock file). Then you need to make `xmonad --recompile`
+    terminate with non-zero exit code. This may be achieved by throwing
+    exception, when lock file exists (the exception will be evaluated, because
+    it's thrown in compile and postCompile will run afterwards):
+
+        {-# LANGUAGE DeriveDataTypeable #-}
+
+        import Control.Exception
+        import qualified XMonad.Util.EntryHelper as EH
+
+        data LockAlreadyExists  = LockAlreadyExists FilePath
+          deriving (Typeable)
+        -- Default value.
+        lockAlreadyExists :: LockAlreadyExists
+        lockAlreadyExists   = LockAlreadyExists ""
+        instance Show LockAlreadyExists where
+            show (LockAlreadyExists f)
+              | null f      = "Lock file already exists."
+              | otherwise   = "Lock file " ++ f ++ " already exists."
+        instance Exception LockAlreadyExists where
+
+
+        main :: IO ()
+        main = EH.withCustomHelper mhConf
+          where
+            mhConf = EH.defaultConfig
+                     { EH.run = oldMain
+                     , EH.compile = \force -> EH.withLock (throw lockAlreadyExists) $ do
+                             let cmd = if force
+                                   then "cd ${XMONAD_HOME} && make clean && make all"
+                                   else "cd ${XMONAD_HOME} && make all"
+                             EH.compileUsingShell cmd
+                     }
 
 * Sending restart request to current xmonad instance
 
